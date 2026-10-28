@@ -27,3 +27,17 @@ npm run dev
 - TypeScript
 - React
 - Tailwind CSS
+
+## TargeX — testing & security checks
+
+Run unit tests (validation rules, error translation, routing):
+
+    bun run test
+
+Manual security checks:
+1. Sign up two accounts A and B. Signed in as A, in the browser console run
+   `supabase.from('profiles').select('*')` — only A's row must come back.
+2. As A, try `update({display_name:'x'}).eq('id', <B id>)` — 0 rows affected.
+3. Try registering a username that exists with different casing — it must be rejected.
+4. Open `/profile` signed out — you must be redirected to `/auth`.
+5. Passwords are handled only by Lovable Cloud auth (hashed); the app never stores them.
