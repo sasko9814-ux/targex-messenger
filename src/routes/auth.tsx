@@ -25,12 +25,12 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
-type Errors = Partial<Record<string, string>>;
+type Errors = { [K in "email" | "password" | "username" | "displayName"]?: string | undefined };
 
 function fieldErrors(err: z.ZodError): Errors {
   const out: Errors = {};
   for (const issue of err.issues) {
-    const k = String(issue.path[0]);
+    const k = String(issue.path[0]) as keyof Errors;
     if (!out[k]) out[k] = issue.message;
   }
   return out;

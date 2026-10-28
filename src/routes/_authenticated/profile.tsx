@@ -23,6 +23,8 @@ export const Route = createFileRoute("/_authenticated/profile")({
   component: ProfilePage,
 });
 
+type FormErrors = { [K in "username" | "displayName" | "bio" | "avatarUrl"]?: string | undefined };
+
 function initials(name: string) {
   return name
     .split(/\s+/)
@@ -38,15 +40,15 @@ function ProfilePage() {
   const qc = useQueryClient();
   const q = useQuery(myProfileQuery(user.id));
   const [editing, setEditing] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<FormErrors>({});
   const [avatarBroken, setAvatarBroken] = useState(false);
 
   const save = useMutation({
     mutationFn: async (fd: Record<string, string>) => {
       const parsed = profileUpdateSchema.safeParse(fd);
       if (!parsed.success) {
-        const errs: Record<string, string> = {};
-        for (const i of parsed.error.issues) errs[String(i.path[0])] ??= i.message;
+        const errs: FormErrors = {};
+        for (const i of parsed.error.issues) errs[String(i.path[0]) as keyof FormErrors] ??= i.message;
         setErrors(errs);
         throw new Error("validation");
       }

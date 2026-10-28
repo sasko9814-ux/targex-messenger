@@ -2,8 +2,8 @@ import type { InputHTMLAttributes, ReactNode } from "react";
 
 type Props = InputHTMLAttributes<HTMLInputElement> & {
   label: string;
-  error?: string;
-  hint?: ReactNode;
+  error?: string | undefined;
+  hint?: ReactNode | undefined;
 };
 
 export function Field({ label, error, hint, id, ...rest }: Props) {
