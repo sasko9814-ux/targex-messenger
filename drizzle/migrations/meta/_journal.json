@@ -15,6 +15,13 @@
       "when": 1793192954094,
       "tag": "0001_direct_messaging",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793193067337,
+      "tag": "0002_least_privilege_grants",
+      "breakpoints": true
     }
   ]
 }
