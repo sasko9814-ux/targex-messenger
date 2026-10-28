@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Brand } from "@/components/brand";
 import { Field } from "@/components/field";
+import { BottomNav } from "@/components/bottom-nav";
+import { DeviceCard } from "@/components/device-card";
 import { myProfileQuery, updateMyProfile, isUsernameAvailable } from "@/lib/profile";
 import { profileUpdateSchema, translateError } from "@/lib/validation";
 
@@ -83,7 +85,7 @@ function ProfilePage() {
   }
 
   return (
-    <main className="bg-glow mx-auto min-h-dvh max-w-md px-6 pb-10 pt-[max(1.5rem,env(safe-area-inset-top))]">
+    <main className="bg-glow mx-auto min-h-dvh max-w-md px-6 pb-28 pt-[max(1.5rem,env(safe-area-inset-top))]">
       <header className="flex items-center justify-between">
         <Brand />
         <button
@@ -214,6 +216,8 @@ function ProfilePage() {
           </button>
         </section>
       )}
+      {!editing && <DeviceCard />}
+      <BottomNav />
     </main>
   );
 }

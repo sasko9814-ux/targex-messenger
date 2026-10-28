@@ -42,7 +42,7 @@ function ChatsPage() {
       return startConversation(parsed.data.username);
     },
     onSuccess: (id) => navigate({ to: "/chats/$conversationId", params: { conversationId: id } }),
-    onError: (e) => setError(translateChatError(e.message) === "Щось пішло не так. Спробуйте ще раз" && !e.message.includes("_") ? e.message : translateChatError(e.message)),
+    onError: (e) => setError(e.name === "ZodError" || /[а-яі]/i.test(e.message) ? e.message : translateChatError(e.message)),
   });
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
