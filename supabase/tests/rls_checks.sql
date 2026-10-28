@@ -9,7 +9,6 @@ DECLARE
   ua text := 'rlsa_' || substr(md5(random()::text), 1, 8);
   ub text := 'rlsb_' || substr(md5(random()::text), 1, 8);
   conv uuid; conv2 uuid; n int; out text := ''; uname text;
-  PROCEDURE_OK boolean;
 BEGIN
   INSERT INTO auth.users (id, instance_id, aud, role, email, raw_user_meta_data, created_at, updated_at)
   VALUES
