@@ -77,3 +77,27 @@ describe("translateError", () => {
     );
   });
 });
+
+import { messageBodySchema, startChatSchema, translateChatError } from "@/lib/validation";
+import { mergeMessage, type Message } from "@/lib/chat";
+
+describe("messages", () => {
+  it("rejects blank and >4000-char bodies, trims valid ones", () => {
+    expect(messageBodySchema.safeParse("   ").success).toBe(false);
+    expect(messageBodySchema.safeParse("x".repeat(4001)).success).toBe(false);
+    expect(messageBodySchema.parse("  hi ")).toBe("hi");
+  });
+  it("start chat requires a valid username", () => {
+    expect(startChatSchema.safeParse({ username: "a b" }).success).toBe(false);
+  });
+  it("maps chat RPC errors", () => {
+    expect(translateChatError("user_not_found")).toBe("Користувача з таким іменем не знайдено");
+    expect(translateChatError("new row violates row-level security policy")).toBe("Немає доступу до цього чату");
+  });
+  it("realtime merge dedupes and keeps newest first", () => {
+    const m = (id: string, t: string): Message => ({ id, conversation_id: "c", sender_id: "s", body: id, created_at: t });
+    const pages = [[m("b", "2026-01-02"), m("a", "2026-01-01")]];
+    expect(mergeMessage(pages, m("b", "2026-01-02"))[0]).toHaveLength(2);
+    expect(mergeMessage(pages, m("c", "2026-01-03"))[0]!.map((x) => x.id)).toEqual(["c", "b", "a"]);
+  });
+});

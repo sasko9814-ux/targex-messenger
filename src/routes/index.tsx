@@ -57,10 +57,10 @@ function Index() {
       <div className="mt-10 space-y-3">
         {signedIn ? (
           <Link
-            to="/profile"
+            to="/chats"
             className="shadow-glow flex h-12 items-center justify-center rounded-full bg-primary font-semibold text-primary-foreground"
           >
-            Мій профіль
+            Мої чати
           </Link>
         ) : (
           <>

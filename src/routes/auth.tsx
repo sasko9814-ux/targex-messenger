@@ -46,7 +46,7 @@ function AuthPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/profile", replace: true });
+      if (data.session) navigate({ to: "/chats", replace: true });
     });
   }, [navigate]);
 
@@ -72,12 +72,12 @@ function AuthPage() {
           email: parsed.data.email,
           password: parsed.data.password,
           options: {
-            emailRedirectTo: window.location.origin + "/profile",
+            emailRedirectTo: window.location.origin + "/auth",
             data: { username: parsed.data.username, display_name: parsed.data.displayName },
           },
         });
         if (error) return setFormError(translateError(error.message));
-        if (data.session) navigate({ to: "/profile", replace: true });
+        if (data.session) navigate({ to: "/chats", replace: true });
         else setSentTo(parsed.data.email);
       } else {
         const parsed = signInSchema.safeParse(fd);
@@ -85,7 +85,7 @@ function AuthPage() {
         setErrors({});
         const { error } = await supabase.auth.signInWithPassword(parsed.data);
         if (error) return setFormError(translateError(error.message));
-        navigate({ to: "/profile", replace: true });
+        navigate({ to: "/chats", replace: true });
       }
     } catch (err) {
       setFormError(translateError(err instanceof Error ? err.message : String(err)));

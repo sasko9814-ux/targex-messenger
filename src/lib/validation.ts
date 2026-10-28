@@ -73,3 +73,24 @@ export function translateError(message: string | undefined | null): string {
   if (m.includes("failed to fetch") || m.includes("network")) return "Немає з'єднання з мережею";
   return "Щось пішло не так. Спробуйте ще раз";
 }
+
+export const MESSAGE_MAX = 4000;
+
+export const messageBodySchema = z
+  .string()
+  .trim()
+  .min(1, "Порожнє повідомлення")
+  .max(MESSAGE_MAX, `Не більше ${MESSAGE_MAX} символів`);
+
+export const startChatSchema = z.object({ username: usernameSchema });
+
+/** Maps chat RPC errors to Ukrainian. */
+export function translateChatError(message: string | undefined | null): string {
+  const m = (message ?? "").toLowerCase();
+  if (m.includes("user_not_found")) return "Користувача з таким іменем не знайдено";
+  if (m.includes("cannot_chat_with_self")) return "Не можна почати чат із самим собою";
+  if (m.includes("row-level security") || m.includes("permission denied"))
+    return "Немає доступу до цього чату";
+  if (m.includes("body_len")) return "Повідомлення порожнє або задовге";
+  return translateError(message);
+}
