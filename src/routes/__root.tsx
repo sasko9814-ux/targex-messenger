@@ -8,12 +8,13 @@ import {
   Scripts,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "@/components/ui/sonner";
+import { VoiceCallsProvider } from "@/components/voice-calls";
 
 function NotFoundComponent() {
   return (
@@ -121,19 +122,23 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
+  const [voiceUserId, setVoiceUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    const { data } = supabase.auth.onAuthStateChange((event) => {
+    let active = true;
+    void supabase.auth.getSession().then(({ data }) => { if (active) setVoiceUserId(data.session?.user.id ?? null); });
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
+      setVoiceUserId(session?.user.id ?? null);
       router.invalidate();
       if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
     });
-    return () => data.subscription.unsubscribe();
+    return () => { active = false; data.subscription.unsubscribe(); };
   }, [router, queryClient]);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
+      <VoiceCallsProvider key={voiceUserId ?? "signed-out"} userId={voiceUserId}><Outlet /></VoiceCallsProvider>
       <Toaster theme="dark" position="top-center" />
     </QueryClientProvider>
   );

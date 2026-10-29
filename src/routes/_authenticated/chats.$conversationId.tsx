@@ -1,13 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useInfiniteQuery, useQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { ArrowLeft, Loader2, SendHorizontal } from "lucide-react";
+import { ArrowLeft, Loader2, Phone, SendHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar } from "@/components/bottom-nav";
 import { mergeMessage, messagesQuery, peerQuery, sendMessage, type Message } from "@/lib/chat";
 import { notifyNewMessage } from "@/lib/push.functions";
 import { MESSAGE_MAX, messageBodySchema, translateChatError } from "@/lib/validation";
+import { Button } from "@/components/ui/button";
+import { useVoiceCalls } from "@/components/voice-calls";
 
 export const Route = createFileRoute("/_authenticated/chats/$conversationId")({
   head: () => ({
@@ -29,6 +31,7 @@ function ChatPage() {
   const { conversationId } = Route.useParams();
   const { user } = Route.useRouteContext();
   const qc = useQueryClient();
+  const voice = useVoiceCalls();
   const peer = useQuery(peerQuery(conversationId, user.id));
   const msgs = useInfiniteQuery({ ...messagesQuery(conversationId), enabled: !!peer.data });
   const [text, setText] = useState("");
@@ -124,10 +127,11 @@ function ChatPage() {
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <Avatar name={p.display_name} url={p.avatar_url} size="sm" />
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="truncate font-semibold">{p.display_name}</p>
           <p className="truncate text-xs text-muted-foreground">@{p.username}</p>
         </div>
+        <Button variant="ghost" size="icon" disabled={voice.busy} aria-label="Голосовий дзвінок" title="Голосовий дзвінок" onClick={() => void voice.start(conversationId, p.display_name)}><Phone /></Button>
       </header>
 
       <div

@@ -16,3 +16,6 @@
 - All user input is validated with zod schemas in `src/lib/validation.ts` (mirrored by DB CHECK constraints) — one source of truth for client rules.
 - Protected pages live under `src/routes/_authenticated/` (client-only gate) — session lives in browser storage.
 - App ships as an installable PWA (manifest only, no service worker); no native APK tooling exists in this project.
+- Voice calls use a root identity-keyed provider, native WebRTC audio, and participant-only persistent signaling; this keeps calls alive across page navigation and disposes media on sign-out.
+- Voice-call mutations use authenticated database RPCs with server-enforced transitions and participant locks; clients cannot directly modify call state.
+- Optional TURN REST credentials are issued by an authenticated server function using Web Crypto and request-scoped secrets; shared TURN secrets never reach browser bundles.
