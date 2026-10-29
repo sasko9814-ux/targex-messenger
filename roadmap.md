@@ -3,6 +3,7 @@
 - [ ] Persistent private call signaling and safe participant permissions
 - [ ] Global real WebRTC audio, incoming/outgoing controls, timeout and cleanup
 - [ ] Voice-call tests and browser verification; document TURN setup and limitations
+- [ ] Proceed directly with applied code/database changes; no further planning pause
 
 ## Previous milestone (outside this task)
 - [ ] Auth/profile hardening (signup username race, tests)
