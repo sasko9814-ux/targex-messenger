@@ -175,11 +175,118 @@ export type Database = {
           },
         ]
       }
+      voice_call_candidates: {
+        Row: {
+          call_id: string
+          candidate: Json
+          created_at: string
+          id: number
+          sender_id: string
+        }
+        Insert: {
+          call_id: string
+          candidate: Json
+          created_at?: string
+          id?: never
+          sender_id?: string
+        }
+        Update: {
+          call_id?: string
+          candidate?: Json
+          created_at?: string
+          id?: never
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voice_call_candidates_call_id_fkey"
+            columns: ["call_id"]
+            isOneToOne: false
+            referencedRelation: "voice_calls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "voice_call_candidates_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      voice_calls: {
+        Row: {
+          answer: Json | null
+          callee_id: string
+          callee_seen_at: string
+          caller_id: string
+          caller_seen_at: string
+          conversation_id: string
+          created_at: string
+          ended_at: string | null
+          expires_at: string
+          id: string
+          offer: Json
+          status: string
+        }
+        Insert: {
+          answer?: Json | null
+          callee_id: string
+          callee_seen_at?: string
+          caller_id: string
+          caller_seen_at?: string
+          conversation_id: string
+          created_at?: string
+          ended_at?: string | null
+          expires_at?: string
+          id?: string
+          offer: Json
+          status?: string
+        }
+        Update: {
+          answer?: Json | null
+          callee_id?: string
+          callee_seen_at?: string
+          caller_id?: string
+          caller_seen_at?: string
+          conversation_id?: string
+          created_at?: string
+          ended_at?: string | null
+          expires_at?: string
+          id?: string
+          offer?: Json
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voice_calls_callee_id_fkey"
+            columns: ["callee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "voice_calls_caller_id_fkey"
+            columns: ["caller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "voice_calls_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      expire_voice_calls: { Args: never; Returns: undefined }
       is_conversation_member: {
         Args: { _conversation_id: string; _user_id: string }
         Returns: boolean
@@ -205,6 +312,52 @@ export type Database = {
       start_direct_conversation: {
         Args: { _username: string }
         Returns: string
+      }
+      start_voice_call: {
+        Args: { _conversation_id: string; _offer: Json }
+        Returns: {
+          answer: Json | null
+          callee_id: string
+          callee_seen_at: string
+          caller_id: string
+          caller_seen_at: string
+          conversation_id: string
+          created_at: string
+          ended_at: string | null
+          expires_at: string
+          id: string
+          offer: Json
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "voice_calls"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      update_voice_call: {
+        Args: { _action: string; _answer?: Json; _call_id: string }
+        Returns: {
+          answer: Json | null
+          callee_id: string
+          callee_seen_at: string
+          caller_id: string
+          caller_seen_at: string
+          conversation_id: string
+          created_at: string
+          ended_at: string | null
+          expires_at: string
+          id: string
+          offer: Json
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "voice_calls"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
     }
     Enums: {
