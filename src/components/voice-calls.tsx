@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
-import { VoiceMedia, callExpired, isLiveCall, HEARTBEAT_MS, type VoiceCall } from "@/lib/voice";
+import { VoiceMedia, VoiceIceQueue, canApplyCall, callExpired, isLiveCall, HEARTBEAT_MS, type VoiceCall } from "@/lib/voice";
 import { voiceIceServers } from "@/lib/voice.functions";
 import { callCandidateSchema, callDescriptionSchema } from "@/lib/validation";
 
@@ -21,13 +21,14 @@ export function VoiceCallsProvider({ userId, children }: { userId: string | null
   const [phase, setPhase] = useState("");
   const [muted, setMuted] = useState(false);
   const [audioBlocked, setAudioBlocked] = useState(false);
+  const [working, setWorking] = useState(false);
   const current = useRef<VoiceCall | null>(null);
   const media = useRef<VoiceMedia | null>(null);
   const audio = useRef<HTMLAudioElement>(null);
   const locked = useRef(false);
   const generation = useRef(0);
   const seenIce = useRef(new Set<number>());
-  const outbound = useRef<RTCIceCandidateInit[]>([]);
+  const iceQueue = useRef<VoiceIceQueue | null>(null);
   const processing = useRef(Promise.resolve());
 
   function cleanup() {
@@ -36,15 +37,17 @@ export function VoiceCallsProvider({ userId, children }: { userId: string | null
     media.current = null;
     if (audio.current) { audio.current.pause(); audio.current.srcObject = null; }
     current.current = null;
-    outbound.current = [];
+    iceQueue.current?.dispose();
+    iceQueue.current = null;
     seenIce.current.clear();
     locked.current = false;
-    setCall(null); setBusy(false); setMuted(false); setAudioBlocked(false);
+    setCall(null); setBusy(false); setWorking(false); setMuted(false); setAudioBlocked(false);
   }
 
   async function action(id: string, value: string, answer?: RTCSessionDescriptionInit) {
     const { data, error } = await supabase.rpc("update_voice_call", { _call_id: id, _action: value, ... (answer ? { _answer: callDescriptionSchema.parse(answer) } : {}) });
     if (error) throw error;
+    if (!data) throw new Error("missing_call");
     return data;
   }
 
@@ -72,16 +75,18 @@ export function VoiceCallsProvider({ userId, children }: { userId: string | null
   async function openMedia() {
     if (!navigator.mediaDevices?.getUserMedia || !window.RTCPeerConnection) throw new Error("unsupported_browser");
     const session = new VoiceMedia();
+    const version = generation.current;
     media.current = session;
+    const queue = new VoiceIceQueue(sendIce, (error) => { if (version === generation.current && !session.disposed) void fail(error); });
+    iceQueue.current = queue;
+    if (current.current) queue.bind(current.current.id);
     const config = await getServers();
     if (session.disposed) throw new Error("call_cancelled");
     const peer = await session.open(config.servers);
     peer.onicecandidate = (event) => {
       if (!event.candidate || session.disposed) return;
       const candidate = event.candidate.toJSON();
-      const active = current.current;
-      if (!active) outbound.current.push(candidate);
-      else void sendIce(candidate, active.id).catch(fail);
+      queue.push(candidate);
     };
     peer.ontrack = (event) => {
       if (session.disposed) return;
@@ -98,22 +103,24 @@ export function VoiceCallsProvider({ userId, children }: { userId: string | null
       if (peer.connectionState === "failed") void fail(new Error("connection_failed"));
     };
     if (!config.relay) toast("Ретранслятор не налаштовано: деякі мережі можуть блокувати дзвінки.");
-    return { session, peer };
+    return { session, peer, queue };
   }
 
   async function syncCandidates(active: VoiceCall) {
+    const session = media.current;
+    if (!session) return;
     const { data, error } = await supabase.from("voice_call_candidates").select("id,candidate,sender_id").eq("call_id", active.id).neq("sender_id", userId ?? "").order("id");
     if (error) throw error;
     for (const row of data ?? []) {
-      if (current.current?.id !== active.id || !media.current || seenIce.current.has(row.id)) continue;
-      await media.current.candidate(callCandidateSchema.parse(row.candidate));
-      seenIce.current.add(row.id);
+      if (current.current?.id !== active.id || session !== media.current || session.disposed || seenIce.current.has(row.id)) continue;
+      await session.candidate(callCandidateSchema.parse(row.candidate));
+      if (session === media.current && !session.disposed) seenIce.current.add(row.id);
     }
   }
 
   async function reconcile(active: VoiceCall) {
     if (active.caller_id !== userId && active.callee_id !== userId) return;
-    if (current.current && current.current.id !== active.id) return;
+    if (!canApplyCall(current.current, active)) return;
     if (!isLiveCall(active)) {
       if (current.current?.id === active.id) { cleanup(); toast(statuses[active.status] ?? "Дзвінок завершено"); }
       return;
@@ -130,40 +137,43 @@ export function VoiceCallsProvider({ userId, children }: { userId: string | null
     current.current = active;
     setCall(active); setBusy(true);
     if (active.status === "accepted" && media.current) {
+      const session = media.current;
       if (active.caller_id === userId && active.answer) {
-        await media.current.description(callDescriptionSchema.parse(active.answer));
-        if (media.current?.peer?.connectionState !== "connected") setPhase("З’єднання…");
+        await session.description(callDescriptionSchema.parse(active.answer));
+        if (session === media.current && !session.disposed && session.peer?.connectionState !== "connected") setPhase("З’єднання…");
       }
     }
     await syncCandidates(active);
   }
 
   function enqueue(active: VoiceCall) {
-    processing.current = processing.current.then(() => reconcile(active)).catch(fail);
+    const version = generation.current;
+    processing.current = processing.current.then(async () => { if (version === generation.current) await reconcile(active); }).catch(async (error: unknown) => { if (version === generation.current) await fail(error); });
   }
 
   async function start(conversation: string, peerName: string) {
     if (!userId || locked.current || current.current) return;
-    locked.current = true; setBusy(true); setName(peerName); setPhase("Доступ до мікрофона…");
+    locked.current = true; setWorking(true); setBusy(true); setName(peerName); setPhase("Доступ до мікрофона…");
     const version = generation.current;
     try {
-      const { peer, session } = await openMedia();
+      const { peer, session, queue } = await openMedia();
       const offer = await peer.createOffer();
       await peer.setLocalDescription(offer);
       if (session.disposed) return;
       const { data, error } = await supabase.rpc("start_voice_call", { _conversation_id: conversation, _offer: callDescriptionSchema.parse(offer) });
       if (error) throw error;
+      if (!data) throw new Error("missing_call");
       if (version !== generation.current || session.disposed) { await action(data.id, "hangup"); return; }
       current.current = data; setCall(data); setPhase("Виклик…");
-      for (const candidate of outbound.current.splice(0)) await sendIce(candidate, data.id);
-      locked.current = false;
+      queue.bind(data.id);
+      locked.current = false; setWorking(false);
     } catch (error) { if (version === generation.current) await fail(error); }
   }
 
   async function accept() {
     const active = current.current;
     if (!active || locked.current || active.status !== "ringing" || active.callee_id !== userId) return;
-    locked.current = true; setPhase("З’єднання…");
+    locked.current = true; setWorking(true); setPhase("З’єднання…");
     const version = generation.current;
     try {
       const { peer, session } = await openMedia();
@@ -173,8 +183,9 @@ export function VoiceCallsProvider({ userId, children }: { userId: string | null
       if (version !== generation.current || session.disposed) return;
       const updated = await action(active.id, "accept", answer);
       if (version !== generation.current) return;
+      if (updated.status !== "accepted") { session.dispose(); await reconcile(updated); return; }
       await reconcile(updated);
-      locked.current = false;
+      locked.current = false; setWorking(false);
     } catch (error) { if (version === generation.current) await fail(error); }
   }
 
@@ -186,6 +197,7 @@ export function VoiceCallsProvider({ userId, children }: { userId: string | null
       if (polling || disposed) return;
       polling = true;
       try {
+        const version = generation.current;
         const { error: expiryError } = await supabase.rpc("expire_voice_calls");
         if (expiryError) throw expiryError;
         const id = current.current?.id;
@@ -193,7 +205,7 @@ export function VoiceCallsProvider({ userId, children }: { userId: string | null
         query = id ? query.eq("id", id) : query.in("status", ["ringing", "accepted"]);
         const { data, error } = await query.order("created_at", { ascending: false }).limit(1).maybeSingle();
         if (error) throw error;
-        if (!disposed && data) enqueue(data);
+        if (!disposed && data && version === generation.current) enqueue(data);
       } catch { /* Live state expires locally if signaling is unavailable. */ }
       finally { polling = false; }
     }
@@ -205,7 +217,8 @@ export function VoiceCallsProvider({ userId, children }: { userId: string | null
     const poll = window.setInterval(() => void refresh(), 3000);
     const heartbeat = window.setInterval(() => {
       const active = current.current;
-      if (active?.status === "accepted") void action(active.id, "heartbeat").then((updated) => { if (!disposed) enqueue(updated); }).catch(() => {});
+      const version = generation.current;
+      if (active?.status === "accepted") void action(active.id, "heartbeat").then((updated) => { if (!disposed && version === generation.current && current.current?.id === active.id) enqueue(updated); }).catch(() => {});
     }, HEARTBEAT_MS);
     const expiry = window.setInterval(() => {
       const active = current.current;
@@ -213,7 +226,7 @@ export function VoiceCallsProvider({ userId, children }: { userId: string | null
     }, 1000);
     function leave() {
       const active = current.current;
-      media.current?.dispose();
+      cleanup();
       if (active) void action(active.id, "hangup").catch(() => {});
     }
     window.addEventListener("pagehide", leave);
@@ -235,7 +248,7 @@ export function VoiceCallsProvider({ userId, children }: { userId: string | null
     {busy && <section role="dialog" aria-modal="false" aria-label="Голосовий дзвінок" className="fixed inset-x-3 top-[max(1rem,env(safe-area-inset-top))] z-50 mx-auto max-w-md rounded-lg border border-border bg-popover p-4 shadow-lg">
       <div className="flex items-center gap-3"><Phone className="h-5 w-5 text-primary" /><div className="min-w-0 flex-1"><p className="truncate font-semibold">{name}</p><p role="status" className="text-sm text-muted-foreground">{phase}</p></div></div>
       <div className="mt-4 flex flex-wrap justify-center gap-3">
-        {incoming && <Button onClick={() => void accept()} disabled={locked.current} aria-label="Прийняти дзвінок" title="Прийняти дзвінок"><Phone />Прийняти</Button>}
+        {incoming && <Button onClick={() => void accept()} disabled={working} aria-label="Прийняти дзвінок" title="Прийняти дзвінок"><Phone />Прийняти</Button>}
         {!incoming && call?.status === "accepted" && <Button variant="secondary" size="icon" aria-label={muted ? "Увімкнути мікрофон" : "Вимкнути мікрофон"} title={muted ? "Увімкнути мікрофон" : "Вимкнути мікрофон"} aria-pressed={muted} onClick={() => { media.current?.mute(!muted); setMuted(!muted); }}>{muted ? <MicOff /> : <Mic />}</Button>}
         {audioBlocked && <Button variant="secondary" onClick={() => void audio.current?.play().then(() => setAudioBlocked(false)).catch(() => toast.error("Не вдалося відтворити звук"))}><Volume2 />Увімкнути звук</Button>}
         <Button variant="destructive" onClick={() => void end(incoming ? "reject" : "hangup")} aria-label={incoming ? "Відхилити дзвінок" : "Завершити дзвінок"} title={incoming ? "Відхилити дзвінок" : "Завершити дзвінок"}><PhoneOff />{incoming ? "Відхилити" : "Завершити"}</Button>

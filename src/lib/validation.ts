@@ -86,14 +86,14 @@ export const startChatSchema = z.object({ username: usernameSchema });
 
 export const callDescriptionSchema = z.object({
   type: z.enum(["offer", "answer"]),
-  sdp: z.string().min(1).max(65536),
+  sdp: z.string().min(1).max(65536).refine((value) => value.trim().length > 0),
 });
 export const callCandidateSchema = z.object({
   candidate: z.string().max(4096),
   sdpMid: z.string().max(256).nullable().optional(),
   sdpMLineIndex: z.number().int().min(0).nullable().optional(),
   usernameFragment: z.string().max(256).nullable().optional(),
-});
+}).strict();
 
 /** Maps chat RPC errors to Ukrainian. */
 export function translateChatError(message: string | undefined | null): string {
