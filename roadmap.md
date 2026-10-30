@@ -1,4 +1,11 @@
-# TargeX roadmap — voice calls first
+# TargeX roadmap — security, calls and appearance
+- [x] Remove tracked environment file; ignore local configuration without changing hosted settings
+- [ ] Audit and fix real voice-call races, cleanup, validation and permissions
+- [ ] Add four persistent app-wide themes and Settings appearance controls
+- [ ] Run tests/lint and inspect automatic build; verify desktop/mobile flows
+- [ ] Document rotation requirement, TURN availability and verification limits
+
+## Earlier voice milestone
 - [ ] Inspect existing app and backend; preserve existing features/design
 - [ ] Persistent private call signaling and safe participant permissions
 - [ ] Global real WebRTC audio, incoming/outgoing controls, timeout and cleanup
