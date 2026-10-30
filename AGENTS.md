@@ -19,3 +19,6 @@
 - Voice calls use a root identity-keyed provider, native WebRTC audio, and participant-only persistent signaling; this keeps calls alive across page navigation and disposes media on sign-out.
 - Voice-call mutations use authenticated database RPCs with server-enforced transitions and participant locks; clients cannot directly modify call state.
 - Optional TURN REST credentials are issued by an authenticated server function using Web Crypto and request-scoped secrets; shared TURN secrets never reach browser bundles.
+- Environment files are ignored and only placeholder configuration is versioned; hosted secrets remain provider-managed to prevent credential disclosure.
+- Appearance uses whitelisted root data-theme tokens with pre-paint restoration and a shared local-preference provider; all surfaces inherit tokens to prevent inconsistent themes.
+- Outbound ICE signaling is serialized per disposable media session and reconciliations are generation-scoped; stale async work cannot corrupt a subsequent call.
