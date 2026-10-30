@@ -38,7 +38,7 @@ function ChatsPage() {
   const start = useMutation({
     mutationFn: async (raw: string) => {
       const parsed = startChatSchema.safeParse({ username: raw.replace(/^@/, "") });
-      if (!parsed.success) throw new Error(parsed.error.issues[0]!.message);
+      if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Некоректне ім’я користувача");
       return startConversation(parsed.data.username);
     },
     onSuccess: (id) => navigate({ to: "/chats/$conversationId", params: { conversationId: id } }),

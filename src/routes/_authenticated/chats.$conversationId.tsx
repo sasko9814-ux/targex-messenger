@@ -140,7 +140,7 @@ function ChatPage() {
           const el = e.currentTarget;
           stickBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
         }}
-        className="flex-1 overflow-y-auto px-3 py-4"
+        className="min-h-0 flex-1 overflow-y-auto px-3 py-4"
       >
         {msgs.hasNextPage && (
           <div className="mb-3 text-center">
@@ -206,7 +206,7 @@ function ChatPage() {
           onChange={(e) => setText(e.target.value)}
           onKeyDown={onKey}
           placeholder="Повідомлення"
-          className="max-h-32 min-h-11 flex-1 resize-none rounded-3xl border border-input bg-surface px-4 py-2.5 outline-none focus:border-primary"
+          className="max-h-32 min-h-11 min-w-0 flex-1 resize-none rounded-3xl border border-input bg-surface px-4 py-2.5 outline-none focus:border-primary"
         />
         <button
           type="submit"

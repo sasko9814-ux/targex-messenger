@@ -15,6 +15,8 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "@/components/ui/sonner";
 import { VoiceCallsProvider } from "@/components/voice-calls";
+import { AppearanceProvider, useAppearance } from "@/components/appearance";
+import { appearanceBootScript } from "@/lib/appearance";
 
 function NotFoundComponent() {
   return (
@@ -107,8 +109,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="uk">
+    <html lang="uk" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: appearanceBootScript }} />
         <HeadContent />
       </head>
       <body>
@@ -120,6 +123,11 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 function RootComponent() {
+  return <AppearanceProvider><AppProviders /></AppearanceProvider>;
+}
+
+function AppProviders() {
+  const { theme } = useAppearance();
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
   const [voiceUserId, setVoiceUserId] = useState<string | null>(null);
@@ -139,7 +147,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <VoiceCallsProvider key={voiceUserId ?? "signed-out"} userId={voiceUserId}><Outlet /></VoiceCallsProvider>
-      <Toaster theme="dark" position="top-center" />
+      <Toaster theme={theme === "light" ? "light" : "dark"} position="top-center" />
     </QueryClientProvider>
   );
 }

@@ -10,6 +10,35 @@ export function callExpired(call: Pick<VoiceCall, "expires_at">, now = Date.now(
   return Date.parse(call.expires_at) <= now;
 }
 
+/** Ordered trickle signaling, scoped to one disposable media session. */
+export class VoiceIceQueue {
+  private id: string | null = null;
+  private pending: RTCIceCandidateInit[] = [];
+  private chain: Promise<void> = Promise.resolve();
+  private disposed = false;
+  constructor(private send: (candidate: RTCIceCandidateInit, id: string) => Promise<void>, private error: (error: unknown) => void) {}
+  push(candidate: RTCIceCandidateInit) {
+    if (this.disposed) return;
+    if (!this.id) this.pending.push(candidate);
+    else this.append(candidate, this.id);
+  }
+  bind(id: string) {
+    if (this.disposed) return;
+    this.id = id;
+    for (const candidate of this.pending.splice(0)) this.append(candidate, id);
+  }
+  private append(candidate: RTCIceCandidateInit, id: string) {
+    this.chain = this.chain.then(async () => { if (!this.disposed) await this.send(candidate, id); }).catch((error: unknown) => { if (!this.disposed) this.error(error); });
+  }
+  settled() { return this.chain; }
+  dispose() { this.disposed = true; this.pending = []; }
+}
+export function canApplyCall(current: VoiceCall | null, next: VoiceCall) {
+  if (!current) return true;
+  if (current.id !== next.id) return false;
+  return !(current.status === "accepted" && next.status === "ringing");
+}
+
 /** One browser media session; dispose is safe on every exit and while permission is pending. */
 export class VoiceMedia {
   peer: RTCPeerConnection | null = null;

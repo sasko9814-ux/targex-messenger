@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { MessageCircle, UserRound } from "lucide-react";
+import { MessageCircle, Settings, UserRound } from "lucide-react";
 
 export function BottomNav() {
   const item =
@@ -12,6 +12,9 @@ export function BottomNav() {
         </Link>
         <Link to="/profile" className={item}>
           <UserRound className="h-5 w-5" /> Профіль
+        </Link>
+        <Link to="/settings" className={item}>
+          <Settings className="h-5 w-5" /> Налаштування
         </Link>
       </div>
     </nav>
