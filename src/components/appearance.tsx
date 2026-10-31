@@ -7,13 +7,13 @@ export const useAppearance = () => useContext(AppearanceContext);
 export function AppearanceProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>("premium-dark");
   function apply(value: Theme) {
-    document.documentElement.dataset.theme = value;
+    document.documentElement.dataset["theme"] = value;
     const color = getComputedStyle(document.documentElement).getPropertyValue("--background").trim();
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", color);
     setTheme(value);
   }
   useEffect(() => {
-    apply(normalizeTheme(document.documentElement.dataset.theme ?? null));
+    apply(normalizeTheme(document.documentElement.dataset["theme"] ?? null));
     function sync(event: StorageEvent) {
       if (event.key === THEME_KEY) apply(normalizeTheme(event.newValue));
     }

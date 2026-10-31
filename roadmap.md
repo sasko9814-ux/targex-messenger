@@ -1,4 +1,8 @@
 # TargeX roadmap — security, calls and appearance
+## Current request — TypeScript fixes and checks
+- [x] Correct strict typing in appearance provider, call signaling and appearance tests without changing behavior
+- [ ] Run tests and lint; inspect harness typecheck/build results
+
 - [x] Remove tracked environment file; ignore local configuration without changing hosted settings
 - [ ] Audit and fix real voice-call races, cleanup, validation and permissions
 - [ ] Add four persistent app-wide themes and Settings appearance controls

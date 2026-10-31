@@ -113,7 +113,13 @@ export function VoiceCallsProvider({ userId, children }: { userId: string | null
     if (error) throw error;
     for (const row of data ?? []) {
       if (current.current?.id !== active.id || session !== media.current || session.disposed || seenIce.current.has(row.id)) continue;
-      await session.candidate(callCandidateSchema.parse(row.candidate));
+      const candidate = callCandidateSchema.parse(row.candidate);
+      await session.candidate({
+        candidate: candidate.candidate,
+        ...(candidate.sdpMid !== undefined ? { sdpMid: candidate.sdpMid } : {}),
+        ...(candidate.sdpMLineIndex !== undefined ? { sdpMLineIndex: candidate.sdpMLineIndex } : {}),
+        ...(candidate.usernameFragment !== undefined ? { usernameFragment: candidate.usernameFragment } : {}),
+      });
       if (session === media.current && !session.disposed) seenIce.current.add(row.id);
     }
   }

@@ -9,7 +9,7 @@ describe("appearance preference", () => {
   it("restores saved Light preference before app rendering", () => {
     localStorage.setItem(THEME_KEY, "light");
     new Function(appearanceBootScript)();
-    expect(document.documentElement.dataset.theme).toBe("light");
+    expect(document.documentElement.dataset["theme"]).toBe("light");
     localStorage.removeItem(THEME_KEY);
   });
 });
