@@ -110,13 +110,11 @@ export function VoiceCallsProvider({
   }
 
   async function sendIce(candidate: RTCIceCandidateInit, id: string) {
-    const { error } = await supabase
-      .from("voice_call_candidates")
-      .insert({
-        call_id: id,
-        ...(userId ? { sender_id: userId } : {}),
-        candidate: callCandidateSchema.parse(candidate) as Json,
-      });
+    const { error } = await supabase.from("voice_call_candidates").insert({
+      call_id: id,
+      ...(userId ? { sender_id: userId } : {}),
+      candidate: callCandidateSchema.parse(candidate) as Json,
+    });
     if (error && current.current?.id === id) throw error;
   }
 
