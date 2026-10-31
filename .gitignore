@@ -31,7 +31,6 @@ dist-ssr
 *.sln
 *.sw?
 
-# Never commit local environment configuration
-.env
-.env.*
-!.env.example
+# Local overrides only; the generated .env holds public app settings and is needed for publishing
+.env.local
+.env.*.local
