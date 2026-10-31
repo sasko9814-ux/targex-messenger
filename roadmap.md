@@ -1,4 +1,9 @@
 # TargeX roadmap — security, calls and appearance
+## Current request — TypeScript fixes and checks
+- [x] Normalize generated public-auth environment expressions; automatic build OK, 28 tests passed, config lint passed; local home-to-sign-in flow has zero page errors. Hosted deployment remains unverified; not published.
+- [x] Correct strict typing in appearance provider, call signaling and appearance tests without changing behavior
+- [x] Run tests and lint; inspect harness typecheck/build results — 28 tests passed, automatic typecheck/build OK, scoped lint has no errors; repository lint still has 138 existing formatting errors and 8 warnings outside this targeted fix
+
 - [x] Remove tracked environment file; ignore local configuration without changing hosted settings
 - [ ] Audit and fix real voice-call races, cleanup, validation and permissions
 - [ ] Add four persistent app-wide themes and Settings appearance controls

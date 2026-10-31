@@ -22,3 +22,4 @@
 - Environment files are ignored and only placeholder configuration is versioned; hosted secrets remain provider-managed to prevent credential disclosure.
 - Appearance uses whitelisted root data-theme tokens with pre-paint restoration and a shared local-preference provider; all surfaces inherit tokens to prevent inconsistent themes.
 - Outbound ICE signaling is serialized per disposable media session and reconciliations are generation-scoped; stale async work cannot corrupt a subsequent call.
+- Vite normalizes only the generated browser client's public auth environment accesses before replacement; this preserves generated files and keeps server secrets out of browser bundles.
