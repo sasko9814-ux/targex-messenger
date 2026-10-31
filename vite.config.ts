@@ -7,6 +7,26 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
+  vite: {
+    plugins: [
+      {
+        name: "targex-public-auth-env",
+        enforce: "pre",
+        transform(code, id) {
+          if (!id.split("?")[0]?.endsWith("/src/integrations/supabase/client.ts")) return;
+          // The generated client uses computed access, while the platform's
+          // production env definitions target static property expressions.
+          // Normalize only the two public values; never inline server secrets.
+          return code
+            .replaceAll("import.meta.env['VITE_SUPABASE_URL']", "import.meta.env.VITE_SUPABASE_URL")
+            .replaceAll(
+              "import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY']",
+              "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY",
+            );
+        },
+      },
+    ],
+  },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this

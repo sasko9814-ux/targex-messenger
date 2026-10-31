@@ -1,5 +1,6 @@
 # TargeX roadmap — security, calls and appearance
 ## Current request — TypeScript fixes and checks
+- [ ] Correct production public-auth environment replacement and verify the app opens without a configuration crash
 - [x] Correct strict typing in appearance provider, call signaling and appearance tests without changing behavior
 - [x] Run tests and lint; inspect harness typecheck/build results — 28 tests passed, automatic typecheck/build OK, scoped lint has no errors; repository lint still has 138 existing formatting errors and 8 warnings outside this targeted fix
 
