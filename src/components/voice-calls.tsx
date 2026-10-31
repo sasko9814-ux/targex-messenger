@@ -114,7 +114,7 @@ export function VoiceCallsProvider({
       .from("voice_call_candidates")
       .insert({
         call_id: id,
-        sender_id: userId ?? undefined,
+        ...(userId ? { sender_id: userId } : {}),
         candidate: callCandidateSchema.parse(candidate) as Json,
       });
     if (error && current.current?.id === id) throw error;
