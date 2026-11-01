@@ -36,6 +36,13 @@
       "when": 1793561242623,
       "tag": "0004_private_chat_attachments_message_actions",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793561284030,
+      "tag": "0005_chat_upload_reservation_policy",
+      "breakpoints": true
     }
   ]
 }
