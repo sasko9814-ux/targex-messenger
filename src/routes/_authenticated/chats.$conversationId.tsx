@@ -1,15 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useInfiniteQuery, useQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
-import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { ArrowLeft, Loader2, Phone, SendHorizontal } from "lucide-react";
-import { toast } from "sonner";
+import { useEffect, useLayoutEffect, useRef } from "react";
+import { ArrowLeft, Loader2, Phone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar } from "@/components/bottom-nav";
 import { mergeMessage, messagesQuery, peerQuery, sendMessage, type Message } from "@/lib/chat";
 import { notifyNewMessage } from "@/lib/push.functions";
-import { MESSAGE_MAX, messageBodySchema, translateChatError } from "@/lib/validation";
+import { attachmentsSchema } from "@/lib/validation";
 import { Button } from "@/components/ui/button";
 import { useVoiceCalls } from "@/components/voice-calls";
+import { ChatComposer } from "@/components/chat-composer";
+import { MessageContent } from "@/components/message-content";
+import type { Attachment } from "@/lib/attachments";
 
 export const Route = createFileRoute("/_authenticated/chats/$conversationId")({
   head: () => ({
@@ -34,8 +36,6 @@ function ChatPage() {
   const voice = useVoiceCalls();
   const peer = useQuery(peerQuery(conversationId, user.id));
   const msgs = useInfiniteQuery({ ...messagesQuery(conversationId), enabled: !!peer.data });
-  const [text, setText] = useState("");
-  const [sending, setSending] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
   const stickBottom = useRef(true);
 
@@ -48,12 +48,16 @@ function ChatPage() {
       .channel(`conv-${conversationId}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${conversationId}` },
+        { event: "*", schema: "public", table: "messages", filter: `conversation_id=eq.${conversationId}` },
         (payload) => {
-          const m = payload.new as Message;
+          if (payload.eventType === "DELETE") { void qc.invalidateQueries({ queryKey: ["messages", conversationId] }); return; }
+          const parsed = attachmentsSchema.safeParse((payload.new as Message).attachments ?? []);
+          if (!parsed.success) return;
+          const m = { ...payload.new, attachments: parsed.data } as Message;
           qc.setQueryData<Pages>(messagesQuery(conversationId).queryKey, (old) =>
             old ? { ...old, pages: mergeMessage(old.pages, m) } : old,
           );
+          void qc.invalidateQueries({ queryKey: ["conversations"] });
         },
       )
       .subscribe((status) => {
@@ -70,32 +74,14 @@ function ChatPage() {
     if (el && stickBottom.current) el.scrollTop = el.scrollHeight;
   }, [list.length]);
 
-  async function submit(e?: FormEvent) {
-    e?.preventDefault();
-    const parsed = messageBodySchema.safeParse(text);
-    if (!parsed.success || sending) return;
-    setSending(true);
-    try {
-      const m = await sendMessage(conversationId, user.id, parsed.data);
+  async function submit(text: string, attachments: Attachment[]) {
+      const m = await sendMessage(conversationId, user.id, text, attachments);
       stickBottom.current = true;
       qc.setQueryData<Pages>(messagesQuery(conversationId).queryKey, (old) =>
         old ? { ...old, pages: mergeMessage(old.pages, m) } : old,
       );
-      setText("");
       qc.invalidateQueries({ queryKey: ["conversations"] });
       notifyNewMessage({ data: { messageId: m.id } }).catch(() => {});
-    } catch (err) {
-      toast.error(translateChatError(err instanceof Error ? err.message : String(err)));
-    } finally {
-      setSending(false);
-    }
-  }
-
-  function onKey(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey && window.matchMedia("(pointer: fine)").matches) {
-      e.preventDefault();
-      submit();
-    }
   }
 
   if (peer.isPending) {
@@ -177,16 +163,7 @@ function ChatPage() {
               const mine = m.sender_id === user.id;
               return (
                 <li key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className={`max-w-[80%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-[15px] ${
-                      mine ? "rounded-br-md bg-primary text-primary-foreground" : "rounded-bl-md bg-card"
-                    }`}
-                  >
-                    {m.body}
-                    <span className={`ml-2 align-bottom text-[10px] ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                      {new Date(m.created_at).toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" })}
-                    </span>
-                  </div>
+                   <MessageContent message={m} mine={mine} onUpdate={(updated) => qc.setQueryData<Pages>(messagesQuery(conversationId).queryKey, (old) => old ? { ...old, pages: mergeMessage(old.pages, updated) } : old)} />
                 </li>
               );
             })}
@@ -194,29 +171,7 @@ function ChatPage() {
         )}
       </div>
 
-      <form onSubmit={submit} className="flex items-end gap-2 border-t border-border px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
-        <label htmlFor="msg" className="sr-only">
-          Повідомлення
-        </label>
-        <textarea
-          id="msg"
-          rows={1}
-          value={text}
-          maxLength={MESSAGE_MAX}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={onKey}
-          placeholder="Повідомлення"
-          className="max-h-32 min-h-11 min-w-0 flex-1 resize-none rounded-3xl border border-input bg-surface px-4 py-2.5 outline-none focus:border-primary"
-        />
-        <button
-          type="submit"
-          disabled={sending || !text.trim()}
-          aria-label="Надіслати"
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-50"
-        >
-          {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <SendHorizontal className="h-5 w-5" />}
-        </button>
-      </form>
+      <ChatComposer key={conversationId} conversationId={conversationId} userId={user.id} onSend={submit} />
     </main>
   );
 }
