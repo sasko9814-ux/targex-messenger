@@ -68,13 +68,34 @@ export function translateError(message: string | undefined | null): string {
     return "Цей email уже зареєстровано";
   if (m.includes("profiles_username_unique") || m.includes("duplicate key"))
     return "Це ім'я користувача вже зайняте";
-  if (m.includes("pwned") || m.includes("weak")) return "Пароль занадто простий або скомпрометований";
+  if (m.includes("pwned") || m.includes("weak"))
+    return "Пароль занадто простий або скомпрометований";
   if (m.includes("rate limit")) return "Забагато спроб. Спробуйте пізніше";
   if (m.includes("failed to fetch") || m.includes("network")) return "Немає з'єднання з мережею";
   return "Щось пішло не так. Спробуйте ще раз";
 }
 
 export const MESSAGE_MAX = 4000;
+export const FILE_MAX = 50 * 1024 * 1024;
+export const FILE_COUNT_MAX = 10;
+export const FILE_EXTENSIONS =
+  "jpg,jpeg,png,webp,mp4,webm,mov,m4v,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,csv,zip,rar,7z,gz,mp3,wav,ogg,json".split(
+    ",",
+  );
+export const chatFileSchema = z.object({
+  name: z
+    .string()
+    .min(1)
+    .max(255)
+    .refine(
+      (name) => FILE_EXTENSIONS.includes(name.split(".").at(-1)?.toLowerCase() ?? ""),
+      "Цей тип файлу не підтримується",
+    ),
+  size: z.number().int().min(1, "Файл порожній").max(FILE_MAX, "Файл має бути не більше 50 МБ"),
+  type: z.string().max(255),
+});
+export const attachmentSchema = chatFileSchema.extend({ path: z.string().min(1).max(1024) });
+export const attachmentsSchema = z.array(attachmentSchema).max(FILE_COUNT_MAX);
 
 export const messageBodySchema = z
   .string()
@@ -86,14 +107,20 @@ export const startChatSchema = z.object({ username: usernameSchema });
 
 export const callDescriptionSchema = z.object({
   type: z.enum(["offer", "answer"]),
-  sdp: z.string().min(1).max(65536).refine((value) => value.trim().length > 0),
+  sdp: z
+    .string()
+    .min(1)
+    .max(65536)
+    .refine((value) => value.trim().length > 0),
 });
-export const callCandidateSchema = z.object({
-  candidate: z.string().max(4096),
-  sdpMid: z.string().max(256).nullable().optional(),
-  sdpMLineIndex: z.number().int().min(0).nullable().optional(),
-  usernameFragment: z.string().max(256).nullable().optional(),
-}).strict();
+export const callCandidateSchema = z
+  .object({
+    candidate: z.string().max(4096),
+    sdpMid: z.string().max(256).nullable().optional(),
+    sdpMLineIndex: z.number().int().min(0).nullable().optional(),
+    usernameFragment: z.string().max(256).nullable().optional(),
+  })
+  .strict();
 
 /** Maps chat RPC errors to Ukrainian. */
 export function translateChatError(message: string | undefined | null): string {

@@ -1,0 +1,1 @@
+ALTER POLICY "Participants upload chat files" ON storage.objects WITH CHECK(bucket_id='chat-files' AND split_part(name,'/',2)=auth.uid()::text AND EXISTS(SELECT 1 FROM public.conversation_members cm WHERE cm.user_id=auth.uid() AND cm.conversation_id::text=split_part(name,'/',1)) AND public.valid_chat_file(split_part(name,'/',3),1));

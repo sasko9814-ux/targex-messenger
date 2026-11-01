@@ -48,9 +48,9 @@ BEGIN
     out := out || 'FAIL 4001-char message accepted' || E'\n';
   EXCEPTION WHEN OTHERS THEN out := out || 'PASS 4001-char message rejected' || E'\n'; END;
 
-  BEGIN UPDATE public.messages SET body = 'edited' WHERE conversation_id = conv;
-    out := out || 'FAIL message edit allowed' || E'\n';
-  EXCEPTION WHEN insufficient_privilege THEN out := out || 'PASS message edit denied' || E'\n'; END;
+  UPDATE public.messages SET body = 'edited' WHERE conversation_id = conv;
+  SELECT count(*) INTO n FROM public.messages WHERE conversation_id=conv AND body='edited' AND edited_at IS NOT NULL;
+  out := out || CASE WHEN n=1 THEN 'PASS' ELSE 'FAIL' END || ' sender edits own text persistently' || E'\n';
 
   BEGIN DELETE FROM public.messages WHERE conversation_id = conv;
     out := out || 'FAIL message delete allowed' || E'\n';
@@ -80,6 +80,12 @@ BEGIN
   EXECUTE 'SET LOCAL ROLE authenticated';
   SELECT count(*) INTO n FROM public.messages WHERE conversation_id = conv;
   out := out || CASE WHEN n = 1 THEN 'PASS' ELSE 'FAIL' END || ' recipient reads message' || E'\n';
+  UPDATE public.messages SET body='hacked' WHERE conversation_id=conv;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  out := out || CASE WHEN n=0 THEN 'PASS' ELSE 'FAIL' END || ' recipient cannot edit sender message' || E'\n';
+  UPDATE public.messages SET deleted_at=now() WHERE conversation_id=conv;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  out := out || CASE WHEN n=0 THEN 'PASS' ELSE 'FAIL' END || ' recipient cannot delete sender message' || E'\n';
   EXECUTE 'RESET ROLE';
 
   -- ===== as C (non-member) =====
