@@ -57,7 +57,9 @@ export const messagesQuery = (conversationId: string) =>
     queryFn: async ({ pageParam }) => {
       let q = supabase
         .from("messages")
-        .select("id, conversation_id, sender_id, body, created_at, attachments, edited_at, deleted_at")
+        .select(
+          "id, conversation_id, sender_id, body, created_at, attachments, edited_at, deleted_at",
+        )
         .eq("conversation_id", conversationId)
         .order("created_at", { ascending: false })
         .order("id", { ascending: false })
@@ -69,11 +71,16 @@ export const messagesQuery = (conversationId: string) =>
       }
       const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []).map((m) => ({ ...m, attachments: attachmentsSchema.parse(m.attachments) }));
+      return (data ?? []).map((m) => ({
+        ...m,
+        attachments: attachmentsSchema.parse(m.attachments),
+      }));
     },
     getNextPageParam: (last) => {
       const tail = last.at(-1);
-      return last.length < PAGE_SIZE || !tail ? undefined : { created_at: tail.created_at, id: tail.id };
+      return last.length < PAGE_SIZE || !tail
+        ? undefined
+        : { created_at: tail.created_at, id: tail.id };
     },
   });
 
@@ -83,11 +90,21 @@ export async function startConversation(username: string) {
   return data as string;
 }
 
-export async function sendMessage(conversationId: string, senderId: string, raw: string, attachments: Attachment[] = []) {
+export async function sendMessage(
+  conversationId: string,
+  senderId: string,
+  raw: string,
+  attachments: Attachment[] = [],
+) {
   const body = messageBodySchema.parse(raw);
   const { data, error } = await supabase
     .from("messages")
-    .insert({ conversation_id: conversationId, sender_id: senderId, body, attachments: attachmentsSchema.parse(attachments) })
+    .insert({
+      conversation_id: conversationId,
+      sender_id: senderId,
+      body,
+      attachments: attachmentsSchema.parse(attachments),
+    })
     .select("id, conversation_id, sender_id, body, created_at, attachments, edited_at, deleted_at")
     .single();
   if (error) throw error;
@@ -96,18 +113,21 @@ export async function sendMessage(conversationId: string, senderId: string, raw:
 
 export async function modifyMessage(id: string, action: { body: string } | { deleted_at: string }) {
   const changes = "body" in action ? { body: messageBodySchema.parse(action.body) } : action;
-  const { data, error } = await supabase.from("messages").update(changes).eq("id", id).select("id, conversation_id, sender_id, body, created_at, attachments, edited_at, deleted_at").single();
+  const { data, error } = await supabase
+    .from("messages")
+    .update(changes)
+    .eq("id", id)
+    .select("id, conversation_id, sender_id, body, created_at, attachments, edited_at, deleted_at")
+    .single();
   if (error) throw error;
   return { ...data, attachments: attachmentsSchema.parse(data.attachments) };
 }
 
 /** Inserts a message into the newest page if it is not already cached. */
-export function mergeMessage(
-  pages: Message[][] | undefined,
-  msg: Message,
-): Message[][] {
+export function mergeMessage(pages: Message[][] | undefined, msg: Message): Message[][] {
   const all = pages ?? [[]];
-  if (all.some((p) => p.some((m) => m.id === msg.id))) return all.map((p) => p.map((m) => m.id === msg.id ? msg : m));
+  if (all.some((p) => p.some((m) => m.id === msg.id)))
+    return all.map((p) => p.map((m) => (m.id === msg.id ? msg : m)));
   const [first = [], ...rest] = all;
   const next = [msg, ...first].sort((a, b) =>
     a.created_at === b.created_at ? (a.id < b.id ? 1 : -1) : a.created_at < b.created_at ? 1 : -1,

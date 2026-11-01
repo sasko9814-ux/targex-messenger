@@ -6,11 +6,24 @@ import { mediaKind } from "@/lib/attachments";
 describe("chat attachments", () => {
   it("accepts requested images, videos and common documents", () => {
     for (const extension of ["jpg", "png", "webp", "mp4", "webm", "pdf", "docx", "txt", "zip"]) {
-      expect(chatFileSchema.safeParse({ name: `file.${extension}`, size: 100, type: "application/octet-stream" }).success).toBe(true);
+      expect(
+        chatFileSchema.safeParse({
+          name: `file.${extension}`,
+          size: 100,
+          type: "application/octet-stream",
+        }).success,
+      ).toBe(true);
     }
   });
   it("rejects unsupported executable and active web files", () => {
-    for (const extension of ["exe", "html", "svg", "js"]) expect(chatFileSchema.safeParse({ name: `file.${extension}`, size: 100, type: "application/octet-stream" }).success).toBe(false);
+    for (const extension of ["exe", "html", "svg", "js"])
+      expect(
+        chatFileSchema.safeParse({
+          name: `file.${extension}`,
+          size: 100,
+          type: "application/octet-stream",
+        }).success,
+      ).toBe(false);
   });
   it("rejects empty files and files exceeding 50 MiB", () => {
     const file = { name: "file.pdf", type: "application/pdf" };
@@ -31,13 +44,24 @@ describe("chat attachments", () => {
 });
 
 describe("message updates", () => {
-  const original: Message = { id: "1", body: "original", conversation_id: "c", sender_id: "u", created_at: "2026-11-01" };
+  const original: Message = {
+    id: "1",
+    body: "original",
+    conversation_id: "c",
+    sender_id: "u",
+    created_at: "2026-11-01",
+  };
   it("replaces edited messages without duplicates or order changes", () => {
     const updated = { ...original, body: "edited", edited_at: "2026-11-02" };
     expect(mergeMessage([[original]], updated)).toEqual([[updated]]);
   });
   it("synchronizes deletion tombstones and removes file metadata", () => {
-    const deleted = { ...original, body: "Повідомлення видалено", deleted_at: "2026-11-02", attachments: [] };
+    const deleted = {
+      ...original,
+      body: "Повідомлення видалено",
+      deleted_at: "2026-11-02",
+      attachments: [],
+    };
     expect(mergeMessage([[original]], deleted)).toEqual([[deleted]]);
   });
 });

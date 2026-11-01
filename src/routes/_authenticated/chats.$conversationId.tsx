@@ -1,5 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useInfiniteQuery, useQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+  type InfiniteData,
+} from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { ArrowLeft, Loader2, Phone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,9 +53,17 @@ function ChatPage() {
       .channel(`conv-${conversationId}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "messages", filter: `conversation_id=eq.${conversationId}` },
+        {
+          event: "*",
+          schema: "public",
+          table: "messages",
+          filter: `conversation_id=eq.${conversationId}`,
+        },
         (payload) => {
-          if (payload.eventType === "DELETE") { void qc.invalidateQueries({ queryKey: ["messages", conversationId] }); return; }
+          if (payload.eventType === "DELETE") {
+            void qc.invalidateQueries({ queryKey: ["messages", conversationId] });
+            return;
+          }
           const parsed = attachmentsSchema.safeParse((payload.new as Message).attachments ?? []);
           if (!parsed.success) return;
           const m = { ...payload.new, attachments: parsed.data } as Message;
@@ -62,7 +75,8 @@ function ChatPage() {
       )
       .subscribe((status) => {
         // Recover anything missed while (re)connecting.
-        if (status === "SUBSCRIBED") qc.invalidateQueries({ queryKey: ["messages", conversationId] });
+        if (status === "SUBSCRIBED")
+          qc.invalidateQueries({ queryKey: ["messages", conversationId] });
       });
     return () => {
       supabase.removeChannel(ch);
@@ -75,13 +89,13 @@ function ChatPage() {
   }, [list.length]);
 
   async function submit(text: string, attachments: Attachment[]) {
-      const m = await sendMessage(conversationId, user.id, text, attachments);
-      stickBottom.current = true;
-      qc.setQueryData<Pages>(messagesQuery(conversationId).queryKey, (old) =>
-        old ? { ...old, pages: mergeMessage(old.pages, m) } : old,
-      );
-      qc.invalidateQueries({ queryKey: ["conversations"] });
-      notifyNewMessage({ data: { messageId: m.id } }).catch(() => {});
+    const m = await sendMessage(conversationId, user.id, text, attachments);
+    stickBottom.current = true;
+    qc.setQueryData<Pages>(messagesQuery(conversationId).queryKey, (old) =>
+      old ? { ...old, pages: mergeMessage(old.pages, m) } : old,
+    );
+    qc.invalidateQueries({ queryKey: ["conversations"] });
+    notifyNewMessage({ data: { messageId: m.id } }).catch(() => {});
   }
 
   if (peer.isPending) {
@@ -95,9 +109,16 @@ function ChatPage() {
     return (
       <main className="mx-auto grid min-h-dvh max-w-md place-items-center px-6 text-center">
         <div>
-          <p className="font-semibold">{peer.isError ? "Не вдалося відкрити чат" : "Чат не знайдено"}</p>
-          <p className="mt-1 text-sm text-muted-foreground">Можливо, у вас немає доступу до цієї розмови.</p>
-          <Link to="/chats" className="mt-4 inline-block rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground">
+          <p className="font-semibold">
+            {peer.isError ? "Не вдалося відкрити чат" : "Чат не знайдено"}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Можливо, у вас немає доступу до цієї розмови.
+          </p>
+          <Link
+            to="/chats"
+            className="mt-4 inline-block rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
+          >
             До чатів
           </Link>
         </div>
@@ -109,7 +130,11 @@ function ChatPage() {
   return (
     <main className="mx-auto flex h-dvh max-w-md flex-col">
       <header className="flex items-center gap-3 border-b border-border px-3 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
-        <Link to="/chats" aria-label="Назад" className="grid h-10 w-10 place-items-center rounded-full hover:bg-card">
+        <Link
+          to="/chats"
+          aria-label="Назад"
+          className="grid h-10 w-10 place-items-center rounded-full hover:bg-card"
+        >
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <Avatar name={p.display_name} url={p.avatar_url} size="sm" />
@@ -117,7 +142,16 @@ function ChatPage() {
           <p className="truncate font-semibold">{p.display_name}</p>
           <p className="truncate text-xs text-muted-foreground">@{p.username}</p>
         </div>
-        <Button variant="ghost" size="icon" disabled={voice.busy} aria-label="Голосовий дзвінок" title="Голосовий дзвінок" onClick={() => void voice.start(conversationId, p.display_name)}><Phone /></Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          disabled={voice.busy}
+          aria-label="Голосовий дзвінок"
+          title="Голосовий дзвінок"
+          onClick={() => void voice.start(conversationId, p.display_name)}
+        >
+          <Phone />
+        </Button>
       </header>
 
       <div
@@ -163,7 +197,15 @@ function ChatPage() {
               const mine = m.sender_id === user.id;
               return (
                 <li key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                   <MessageContent message={m} mine={mine} onUpdate={(updated) => qc.setQueryData<Pages>(messagesQuery(conversationId).queryKey, (old) => old ? { ...old, pages: mergeMessage(old.pages, updated) } : old)} />
+                  <MessageContent
+                    message={m}
+                    mine={mine}
+                    onUpdate={(updated) =>
+                      qc.setQueryData<Pages>(messagesQuery(conversationId).queryKey, (old) =>
+                        old ? { ...old, pages: mergeMessage(old.pages, updated) } : old,
+                      )
+                    }
+                  />
                 </li>
               );
             })}
@@ -171,7 +213,12 @@ function ChatPage() {
         )}
       </div>
 
-      <ChatComposer key={conversationId} conversationId={conversationId} userId={user.id} onSend={submit} />
+      <ChatComposer
+        key={conversationId}
+        conversationId={conversationId}
+        userId={user.id}
+        onSend={submit}
+      />
     </main>
   );
 }
