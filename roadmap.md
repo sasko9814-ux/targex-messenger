@@ -1,4 +1,9 @@
 # TargeX roadmap — security, calls and appearance
+## Current request — files and message actions
+- [ ] Secure persistent multi-file sharing, previews, progress and downloads
+- [ ] Owner-only persistent message editing and deletion with realtime updates
+- [ ] Verify permissions and two-user flows; run tests and inspect automatic build
+
 ## Current request — TypeScript fixes and checks
 - [x] Normalize generated public-auth environment expressions; automatic build OK, 28 tests passed, config lint passed; local home-to-sign-in flow has zero page errors. Hosted deployment remains unverified; not published.
 - [x] Correct strict typing in appearance provider, call signaling and appearance tests without changing behavior
