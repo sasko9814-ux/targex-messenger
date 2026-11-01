@@ -23,3 +23,5 @@
 - Appearance uses whitelisted root data-theme tokens with pre-paint restoration and a shared local-preference provider; all surfaces inherit tokens to prevent inconsistent themes.
 - Outbound ICE signaling is serialized per disposable media session and reconciliations are generation-scoped; stale async work cannot corrupt a subsequent call.
 - Vite normalizes only the generated browser client's public auth environment accesses before replacement; this preserves generated files and keeps server secrets out of browser bundles.
+- Message attachments are JSON metadata verified against private Storage objects by a database trigger; participant-scoped Storage policies authorize uploads and reads, never public URLs.
+- Message edits and soft deletion use column-limited UPDATE grants, sender-scoped RLS and immutable identity triggers; realtime UPDATE events preserve history ordering and synchronize tombstones.
