@@ -75,6 +75,16 @@ export function translateError(message: string | undefined | null): string {
 }
 
 export const MESSAGE_MAX = 4000;
+export const FILE_MAX = 50 * 1024 * 1024;
+export const FILE_COUNT_MAX = 10;
+export const FILE_EXTENSIONS = "jpg,jpeg,png,webp,mp4,webm,mov,m4v,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,csv,zip,rar,7z,gz,mp3,wav,ogg,json".split(",");
+export const chatFileSchema = z.object({
+  name: z.string().min(1).max(255).refine((name) => FILE_EXTENSIONS.includes(name.split(".").at(-1)?.toLowerCase() ?? ""), "Цей тип файлу не підтримується"),
+  size: z.number().int().min(1, "Файл порожній").max(FILE_MAX, "Файл має бути не більше 50 МБ"),
+  type: z.string().max(255),
+});
+export const attachmentSchema = chatFileSchema.extend({ path: z.string().min(1).max(1024) });
+export const attachmentsSchema = z.array(attachmentSchema).max(FILE_COUNT_MAX);
 
 export const messageBodySchema = z
   .string()
