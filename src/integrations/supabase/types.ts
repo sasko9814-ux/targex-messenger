@@ -70,23 +70,32 @@ export type Database = {
       }
       messages: {
         Row: {
+          attachments: Json
           body: string
           conversation_id: string
           created_at: string
+          deleted_at: string | null
+          edited_at: string | null
           id: string
           sender_id: string
         }
         Insert: {
+          attachments?: Json
           body: string
           conversation_id: string
           created_at?: string
+          deleted_at?: string | null
+          edited_at?: string | null
           id?: string
           sender_id?: string
         }
         Update: {
+          attachments?: Json
           body?: string
           conversation_id?: string
           created_at?: string
+          deleted_at?: string | null
+          edited_at?: string | null
           id?: string
           sender_id?: string
         }
@@ -286,6 +295,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_read_chat_file: { Args: { _path: string }; Returns: boolean }
       expire_voice_calls: { Args: never; Returns: undefined }
       is_conversation_member: {
         Args: { _conversation_id: string; _user_id: string }
@@ -358,6 +368,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      valid_chat_file: {
+        Args: { _name: string; _size: number }
+        Returns: boolean
       }
     }
     Enums: {

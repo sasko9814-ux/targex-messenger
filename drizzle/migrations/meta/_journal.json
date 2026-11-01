@@ -29,6 +29,13 @@
       "when": 1793267291406,
       "tag": "0003_private_voice_calls",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793561242623,
+      "tag": "0004_private_chat_attachments_message_actions",
+      "breakpoints": true
     }
   ]
 }
