@@ -31,3 +31,9 @@
 - [ ] PWA install instructions
 - [ ] Android APK: document limitation (no JDK/Android SDK in sandbox)
 - [ ] Tests, typecheck, lint, build, security scan, README checklists
+
+## Current request — TargeX AI
+- [x] AI tables with owner-only access, per-user rate limit, server-side AI functions
+- [ ] Composer AI panel (replies, rewrite, grammar, translate, summarize)
+- [ ] Dedicated TargeX AI chat pages with history, regenerate, stop
+- [ ] AI settings section; tests; browser verification
