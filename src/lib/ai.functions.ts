@@ -39,8 +39,8 @@ async function generate(p: Payload): Promise<AiResult<string>> {
     const body = { ...p, store: false } as const;
     const stream =
       m === "openai/gpt-6-sol"
-        ? await streamResponse({ model: "openai/gpt-6-sol", ...body, stream: true }, { signal })
-        : await streamResponse({ model: "openai/gpt-6-astra", ...body, stream: true }, { signal });
+        ? await streamResponse({ model: "openai/gpt-6-sol", ...body }, { signal })
+        : await streamResponse({ model: "openai/gpt-6-astra", ...body }, { signal });
     let out = "";
     for await (const ev of stream) {
       if (ev.type === "response.output_text.delta") out += ev.delta;
