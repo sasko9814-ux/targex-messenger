@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Paperclip, SendHorizontal, X, File, Loader2 } from "lucide-react";
+import { Paperclip, SendHorizontal, X, File, Loader2, Sparkle } from "lucide-react";
+import { AiAssistPanel, type ContextMsg } from "@/components/ai-assist-panel";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,7 +31,9 @@ export function ChatComposer({
   conversationId,
   userId,
   onSend,
+  context = [],
 }: {
+  context?: ContextMsg[];
   conversationId: string;
   userId: string;
   onSend: (text: string, files: Attachment[]) => Promise<void>;
@@ -38,6 +41,7 @@ export function ChatComposer({
   const [text, setText] = useState("");
   const [files, setFiles] = useState<PendingFile[]>([]);
   const [sending, setSending] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const liveFiles = useRef<PendingFile[]>([]);
   const controller = useRef<AbortController | null>(null);
@@ -153,6 +157,14 @@ export function ChatComposer({
       onSubmit={submit}
       className="shrink-0 border-t border-border px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3"
     >
+      {aiOpen && (
+        <AiAssistPanel
+          draft={text}
+          context={context}
+          onClose={() => setAiOpen(false)}
+          onInsert={(v) => setText(v.slice(0, MESSAGE_MAX))}
+        />
+      )}
       {!!files.length && (
         <ul className="mb-3 flex max-h-48 gap-2 overflow-x-auto pb-1" aria-label="Вибрані файли">
           {files.map((f) => (
@@ -223,6 +235,18 @@ export function ChatComposer({
           title="Прикріпити файли"
         >
           <Paperclip />
+        </Button>
+        <Button
+          type="button"
+          variant={aiOpen ? "secondary" : "ghost"}
+          size="icon"
+          className="h-11 w-9 shrink-0"
+          aria-label="TargeX AI"
+          aria-pressed={aiOpen}
+          title="TargeX AI"
+          onClick={() => setAiOpen((v) => !v)}
+        >
+          <Sparkle />
         </Button>
         <label htmlFor="msg" className="sr-only">
           Повідомлення
