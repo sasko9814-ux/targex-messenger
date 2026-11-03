@@ -106,7 +106,7 @@ function AiChatPage() {
   async function remove() {
     if (!confirm(t.clearConfirm)) return;
     const { error: e } = await supabase.from("ai_conversations").delete().eq("id", id);
-    if (e) return toast.error(t.error);
+    if (e) { toast.error(t.error); return; }
     void qc.invalidateQueries({ queryKey: ["ai-conversations"] });
     void nav({ to: "/ai" });
   }

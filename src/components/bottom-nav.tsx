@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { MessageCircle, Settings, UserRound } from "lucide-react";
+import { Bot, MessageCircle, Settings, UserRound } from "lucide-react";
 
 export function BottomNav() {
   const item =
@@ -9,6 +9,9 @@ export function BottomNav() {
       <div className="mx-auto flex max-w-md">
         <Link to="/chats" className={item}>
           <MessageCircle className="h-5 w-5" /> Чати
+        </Link>
+        <Link to="/ai" className={item}>
+          <Bot className="h-5 w-5" /> TargeX AI
         </Link>
         <Link to="/profile" className={item}>
           <UserRound className="h-5 w-5" /> Профіль

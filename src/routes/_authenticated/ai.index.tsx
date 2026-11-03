@@ -39,7 +39,7 @@ function AiHome() {
       .select("id")
       .single();
     setCreating(false);
-    if (error) return toast.error(t.error);
+    if (error) { toast.error(t.error); return; }
     void qc.invalidateQueries({ queryKey: ["ai-conversations"] });
     void nav({ to: "/ai/$id", params: { id: data.id } });
   }
