@@ -36,7 +36,7 @@ async function generate(p: Payload): Promise<AiResult<string>> {
   const signal = AbortSignal.any(signals);
   try {
     const m = model();
-    const body = { ...p, store: false } as const;
+    const body = p;
     const stream =
       m === "openai/gpt-6-sol"
         ? await streamResponse({ model: "openai/gpt-6-sol", ...body }, { signal })

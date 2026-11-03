@@ -5,6 +5,7 @@ import { BottomNav } from "@/components/bottom-nav";
 import { Button } from "@/components/ui/button";
 import { useAppearance } from "@/components/appearance";
 import { themes } from "@/lib/appearance";
+import { AiSettings } from "@/components/ai-settings";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({ meta: [
@@ -20,6 +21,7 @@ export const Route = createFileRoute("/_authenticated/settings")({
 
 function SettingsPage() {
   const { theme, select } = useAppearance();
+  const { user } = Route.useRouteContext();
   return <main className="mx-auto min-h-dvh max-w-md px-6 pb-28 pt-[max(1.5rem,env(safe-area-inset-top))]">
     <Brand />
     <h1 className="font-display mt-8 text-2xl font-bold">Налаштування</h1>
@@ -38,5 +40,6 @@ function SettingsPage() {
       </div>
     </section>
     <BottomNav />
-  </main>;
+  <AiSettings userId={user.id} />
+    </main>;
 }

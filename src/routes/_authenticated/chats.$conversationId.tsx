@@ -214,6 +214,7 @@ function ChatPage() {
       </div>
 
       <ChatComposer
+        context={list.filter((m) => !m.deleted_at && m.body.trim()).slice(-8).map((m) => ({ id: m.id, mine: m.sender_id === user.id, text: m.body }))}
         key={conversationId}
         conversationId={conversationId}
         userId={user.id}
