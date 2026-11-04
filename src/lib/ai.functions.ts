@@ -6,6 +6,9 @@ import {
   assistSchema,
   buildAssistPrompt,
   chatSchema,
+  chatSummarySchema,
+  buildChatSummaryPrompt,
+  CHAT_SUMMARY_MESSAGES_MAX,
   parseReplies,
   titleFrom,
   type AiErrorCode,
@@ -54,7 +57,8 @@ async function generate(p: Payload): Promise<AiResult<string>> {
       const name = e.constructor.name;
       if (name === "RateLimitError") code = "rate_limited";
       else if (name === "PaymentRequiredError") code = "credits";
-      else if (name === "ConfigurationError" || name === "AuthenticationError") code = "not_configured";
+      else if (name === "ConfigurationError" || name === "AuthenticationError")
+        code = "not_configured";
       // Log only safe diagnostics, never prompts or message bodies.
       console.error("[ai] gateway error", name, e.httpStatus, e.ids);
     } else console.error("[ai] failure", e instanceof Error ? e.name : "unknown");
@@ -62,7 +66,11 @@ async function generate(p: Payload): Promise<AiResult<string>> {
   }
 }
 
-type Ctx = { supabase: import("@supabase/supabase-js").SupabaseClient<import("@/integrations/supabase/types").Database> };
+type Ctx = {
+  supabase: import("@supabase/supabase-js").SupabaseClient<
+    import("@/integrations/supabase/types").Database
+  >;
+};
 async function quota({ supabase }: Ctx) {
   const { data, error } = await supabase.rpc("consume_ai_quota");
   return !error && data === true;
@@ -100,12 +108,18 @@ export const aiChat = createServerFn({ method: "POST" })
     if (!(await quota(context))) return { ok: false, error: "rate_limited" };
 
     if (data.content) {
-      const ins = await supabase
-        .from("ai_messages")
-        .insert({ conversation_id: data.conversationId, user_id: userId, role: "user", content: data.content });
+      const ins = await supabase.from("ai_messages").insert({
+        conversation_id: data.conversationId,
+        user_id: userId,
+        role: "user",
+        content: data.content,
+      });
       if (ins.error) return { ok: false, error: "provider" };
       if (conv.data.title === "Нова розмова")
-        await supabase.from("ai_conversations").update({ title: titleFrom(data.content) }).eq("id", data.conversationId);
+        await supabase
+          .from("ai_conversations")
+          .update({ title: titleFrom(data.content) })
+          .eq("id", data.conversationId);
     } else {
       const last = await supabase
         .from("ai_messages")
@@ -114,7 +128,8 @@ export const aiChat = createServerFn({ method: "POST" })
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (last.data?.role === "assistant") await supabase.from("ai_messages").delete().eq("id", last.data.id);
+      if (last.data?.role === "assistant")
+        await supabase.from("ai_messages").delete().eq("id", last.data.id);
     }
 
     const hist = await supabase
@@ -124,9 +139,10 @@ export const aiChat = createServerFn({ method: "POST" })
       .order("created_at", { ascending: false })
       .limit(AI_CHAT_HISTORY_MAX);
     if (hist.error || !hist.data.length) return { ok: false, error: "invalid" };
-    const input = hist.data
-      .reverse()
-      .map((m) => ({ role: m.role === "assistant" ? ("assistant" as const) : ("user" as const), content: m.content }));
+    const input = hist.data.reverse().map((m) => ({
+      role: m.role === "assistant" ? ("assistant" as const) : ("user" as const),
+      content: m.content,
+    }));
 
     const r = await generate({
       instructions:
@@ -137,9 +153,49 @@ export const aiChat = createServerFn({ method: "POST" })
     if (!r.ok) return r;
     const saved = await supabase
       .from("ai_messages")
-      .insert({ conversation_id: data.conversationId, user_id: userId, role: "assistant", content: r.data.slice(0, 20000) })
+      .insert({
+        conversation_id: data.conversationId,
+        user_id: userId,
+        role: "assistant",
+        content: r.data.slice(0, 20000),
+      })
       .select("id")
       .single();
-    await supabase.from("ai_conversations").update({ updated_at: new Date().toISOString() }).eq("id", data.conversationId);
-    return saved.error ? { ok: false, error: "provider" } : { ok: true, data: { id: saved.data.id } };
+    await supabase
+      .from("ai_conversations")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", data.conversationId);
+    return saved.error
+      ? { ok: false, error: "provider" }
+      : { ok: true, data: { id: saved.data.id } };
+  });
+
+/** User-triggered summary of a direct chat. Not stored, not shared. */
+export const aiSummarizeChat = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => chatSummarySchema.parse(input))
+  .handler(async ({ data, context }): Promise<AiResult<string>> => {
+    const { supabase, userId } = context;
+    const member = await supabase
+      .from("conversation_members")
+      .select("conversation_id")
+      .eq("conversation_id", data.conversationId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (member.error || !member.data) return { ok: false, error: "not_found" };
+    if (!process.env["LOVABLE_API_KEY"]) return { ok: false, error: "not_configured" };
+
+    const msgs = await supabase
+      .from("messages")
+      .select("sender_id, body, created_at")
+      .eq("conversation_id", data.conversationId)
+      .is("deleted_at", null)
+      .neq("body", "")
+      .order("created_at", { ascending: false })
+      .limit(CHAT_SUMMARY_MESSAGES_MAX);
+    if (msgs.error) return { ok: false, error: "provider" };
+    const prompt = buildChatSummaryPrompt(msgs.data.filter((m) => m.body.trim()).reverse(), userId);
+    if (!prompt) return { ok: false, error: "invalid" };
+    if (!(await quota(context))) return { ok: false, error: "rate_limited" };
+    return generate({ ...prompt, max_output_tokens: 1200 });
   });

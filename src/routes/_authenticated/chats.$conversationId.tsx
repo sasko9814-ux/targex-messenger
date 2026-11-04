@@ -6,7 +6,12 @@ import {
   type InfiniteData,
 } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useRef } from "react";
-import { ArrowLeft, Loader2, Phone } from "lucide-react";
+import { ArrowLeft, Loader2, Phone, Sparkles, X } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { aiSummarizeChat } from "@/lib/ai.functions";
+import { errorLabels } from "@/lib/ai-i18n";
+import { useAiPrefs } from "@/components/ai-prefs";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar } from "@/components/bottom-nav";
 import { mergeMessage, messagesQuery, peerQuery, sendMessage, type Message } from "@/lib/chat";
@@ -41,6 +46,32 @@ function ChatPage() {
   const voice = useVoiceCalls();
   const peer = useQuery(peerQuery(conversationId, user.id));
   const msgs = useInfiniteQuery({ ...messagesQuery(conversationId), enabled: !!peer.data });
+  const { prefs } = useAiPrefs();
+  const summarizeFn = useServerFn(aiSummarizeChat);
+  const [summary, setSummary] = useState<
+    | { s: "idle" }
+    | { s: "confirm" }
+    | { s: "loading" }
+    | { s: "error"; msg: string }
+    | { s: "done"; text: string }
+  >({ s: "idle" });
+  async function runSummary() {
+    setSummary({ s: "loading" });
+    try {
+      const r = await summarizeFn({ data: { conversationId } });
+      if (r.ok) setSummary({ s: "done", text: r.data });
+      else
+        setSummary({
+          s: "error",
+          msg:
+            r.error === "invalid"
+              ? "У чаті ще немає текстових повідомлень."
+              : errorLabels.uk[r.error],
+        });
+    } catch {
+      setSummary({ s: "error", msg: "Не вдалося створити підсумок. Спробуйте ще раз." });
+    }
+  }
   const scroller = useRef<HTMLDivElement>(null);
   const stickBottom = useRef(true);
 
@@ -145,6 +176,16 @@ function ChatPage() {
         <Button
           variant="ghost"
           size="icon"
+          disabled={!prefs.enabled || summary.s === "loading"}
+          aria-label="Підсумувати чат за допомогою AI"
+          title={prefs.enabled ? "Підсумувати чат (AI)" : "AI-функції вимкнено в налаштуваннях"}
+          onClick={() => setSummary({ s: "confirm" })}
+        >
+          <Sparkles />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
           disabled={voice.busy}
           aria-label="Голосовий дзвінок"
           title="Голосовий дзвінок"
@@ -153,6 +194,65 @@ function ChatPage() {
           <Phone />
         </Button>
       </header>
+
+      {summary.s !== "idle" && (
+        <section
+          aria-label="AI-підсумок чату"
+          aria-live="polite"
+          className="mx-3 mt-2 max-h-[45dvh] overflow-y-auto rounded-xl border border-border bg-card p-3 text-sm"
+        >
+          <div className="mb-2 flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <p className="flex-1 font-semibold">Підсумок чату · TargeX AI</p>
+            {summary.s !== "loading" && (
+              <button
+                aria-label="Закрити підсумок"
+                onClick={() => setSummary({ s: "idle" })}
+                className="grid h-8 w-8 place-items-center rounded-full hover:bg-muted"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          {summary.s === "confirm" && (
+            <>
+              <p className="text-muted-foreground">
+                AI обробить до 100 останніх текстових повідомлень цього приватного чату. Вкладення
+                не читаються, а підсумок не зберігається і не надсилається співрозмовнику.
+              </p>
+              <div className="mt-3 flex justify-end gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setSummary({ s: "idle" })}>
+                  Скасувати
+                </Button>
+                <Button size="sm" autoFocus onClick={() => void runSummary()}>
+                  Підсумувати
+                </Button>
+              </div>
+            </>
+          )}
+          {summary.s === "loading" && (
+            <p className="flex items-center gap-2 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Створюємо підсумок…
+            </p>
+          )}
+          {summary.s === "error" && (
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-destructive">{summary.msg}</p>
+              <Button variant="ghost" size="sm" onClick={() => void runSummary()}>
+                Повторити
+              </Button>
+            </div>
+          )}
+          {summary.s === "done" && (
+            <>
+              <p className="whitespace-pre-wrap">{summary.text}</p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Згенеровано AI, може містити помилки.
+              </p>
+            </>
+          )}
+        </section>
+      )}
 
       <div
         ref={scroller}
@@ -214,7 +314,10 @@ function ChatPage() {
       </div>
 
       <ChatComposer
-        context={list.filter((m) => !m.deleted_at && m.body.trim()).slice(-8).map((m) => ({ id: m.id, mine: m.sender_id === user.id, text: m.body }))}
+        context={list
+          .filter((m) => !m.deleted_at && m.body.trim())
+          .slice(-8)
+          .map((m) => ({ id: m.id, mine: m.sender_id === user.id, text: m.body }))}
         key={conversationId}
         conversationId={conversationId}
         userId={user.id}
