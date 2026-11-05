@@ -29,7 +29,6 @@ export async function updateMyProfile(userId: string, input: ProfileUpdateInput)
       username: input.username,
       display_name: input.displayName,
       bio: input.bio,
-      avatar_url: input.avatarUrl,
     })
     .eq("id", userId)
     .select()

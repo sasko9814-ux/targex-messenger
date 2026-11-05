@@ -1,3 +1,4 @@
+import { useAvatarSrc } from "@/lib/avatar";
 import { Link } from "@tanstack/react-router";
 import { Bot, MessageCircle, Settings, UserRound } from "lucide-react";
 
@@ -24,7 +25,15 @@ export function BottomNav() {
   );
 }
 
-export function Avatar({ name, url, size = "md" }: { name: string; url?: string | null; size?: "md" | "sm" }) {
+export function Avatar({
+  name,
+  url,
+  size = "md",
+}: {
+  name: string;
+  url?: string | null;
+  size?: "md" | "sm";
+}) {
   const cls = size === "sm" ? "h-9 w-9 text-xs" : "h-12 w-12 text-sm";
   const initials = name
     .split(/\s+/)
@@ -32,10 +41,18 @@ export function Avatar({ name, url, size = "md" }: { name: string; url?: string 
     .join("")
     .slice(0, 2)
     .toUpperCase();
-  return url ? (
-    <img src={url} alt="" referrerPolicy="no-referrer" className={`${cls} shrink-0 rounded-full object-cover`} />
+  const src = useAvatarSrc(url);
+  return src ? (
+    <img
+      src={src}
+      alt=""
+      referrerPolicy="no-referrer"
+      className={`${cls} shrink-0 rounded-full object-cover`}
+    />
   ) : (
-    <div className={`${cls} grid shrink-0 place-items-center rounded-full bg-secondary font-bold text-primary`}>
+    <div
+      className={`${cls} grid shrink-0 place-items-center rounded-full bg-secondary font-bold text-primary`}
+    >
       {initials}
     </div>
   );

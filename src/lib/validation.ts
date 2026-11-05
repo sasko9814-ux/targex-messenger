@@ -48,12 +48,6 @@ export const profileUpdateSchema = z.object({
     .trim()
     .max(300, "Не більше 300 символів")
     .transform((v) => (v === "" ? null : v)),
-  avatarUrl: z
-    .string()
-    .trim()
-    .max(500, "Задовге посилання")
-    .refine((v) => v === "" || /^https:\/\/\S+$/.test(v), "Посилання має починатися з https://")
-    .transform((v) => (v === "" ? null : v)),
 });
 
 export type SignUpInput = z.infer<typeof signUpSchema>;

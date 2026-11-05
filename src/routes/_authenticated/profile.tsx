@@ -9,6 +9,8 @@ import { Field } from "@/components/field";
 import { BottomNav } from "@/components/bottom-nav";
 import { DeviceCard } from "@/components/device-card";
 import { myProfileQuery, updateMyProfile, isUsernameAvailable } from "@/lib/profile";
+import { AvatarEditor } from "@/components/avatar-editor";
+import { removeAvatar, replaceAvatar, useAvatarSrc } from "@/lib/avatar";
 import { profileUpdateSchema, translateError } from "@/lib/validation";
 
 export const Route = createFileRoute("/_authenticated/profile")({
@@ -25,7 +27,7 @@ export const Route = createFileRoute("/_authenticated/profile")({
   component: ProfilePage,
 });
 
-type FormErrors = { [K in "username" | "displayName" | "bio" | "avatarUrl"]?: string | undefined };
+type FormErrors = { [K in "username" | "displayName" | "bio"]?: string | undefined };
 
 function initials(name: string) {
   return name
@@ -50,11 +52,15 @@ function ProfilePage() {
       const parsed = profileUpdateSchema.safeParse(fd);
       if (!parsed.success) {
         const errs: FormErrors = {};
-        for (const i of parsed.error.issues) errs[String(i.path[0]) as keyof FormErrors] ??= i.message;
+        for (const i of parsed.error.issues)
+          errs[String(i.path[0]) as keyof FormErrors] ??= i.message;
         setErrors(errs);
         throw new Error("validation");
       }
-      if (parsed.data.username !== q.data?.username && !(await isUsernameAvailable(parsed.data.username))) {
+      if (
+        parsed.data.username !== q.data?.username &&
+        !(await isUsernameAvailable(parsed.data.username))
+      ) {
         setErrors({ username: "Це ім'я користувача вже зайняте" });
         throw new Error("validation");
       }
@@ -70,6 +76,20 @@ function ProfilePage() {
     onError: (e) => {
       if (e.message !== "validation") toast.error(translateError(e.message));
     },
+  });
+
+  const avatarSrc = useAvatarSrc(q.data?.avatar_url);
+  const avatar = useMutation({
+    mutationFn: (blob: Blob | null) =>
+      blob
+        ? replaceAvatar(user.id, blob, q.data?.avatar_url ?? null)
+        : removeAvatar(user.id, q.data?.avatar_url ?? null),
+    onSuccess: (data, blob) => {
+      qc.setQueryData(myProfileQuery(user.id).queryKey, data);
+      setAvatarBroken(false);
+      toast.success(blob ? "Фото профілю оновлено" : "Фото профілю видалено");
+    },
+    onError: (e) => toast.error(e.message),
   });
 
   async function signOut() {
@@ -123,7 +143,13 @@ function ProfilePage() {
       ) : editing ? (
         <form onSubmit={onSubmit} noValidate className="mt-10 space-y-4">
           <h1 className="font-display text-2xl font-bold">Редагування профілю</h1>
-          <Field label="Ваше ім'я" name="displayName" defaultValue={q.data.display_name} maxLength={50} error={errors.displayName} />
+          <Field
+            label="Ваше ім'я"
+            name="displayName"
+            defaultValue={q.data.display_name}
+            maxLength={50}
+            error={errors.displayName}
+          />
           <Field
             label="Ім'я користувача"
             name="username"
@@ -148,15 +174,6 @@ function ProfilePage() {
             />
             {errors.bio && <p className="text-sm text-destructive">{errors.bio}</p>}
           </div>
-          <Field
-            label="Посилання на фото"
-            name="avatarUrl"
-            type="url"
-            inputMode="url"
-            placeholder="https://…"
-            defaultValue={q.data.avatar_url ?? ""}
-            error={errors.avatarUrl}
-          />
           <div className="flex gap-3 pt-2">
             <button
               type="button"
@@ -180,9 +197,9 @@ function ProfilePage() {
         </form>
       ) : (
         <section className="mt-12 text-center">
-          {q.data.avatar_url && !avatarBroken ? (
+          {avatarSrc && !avatarBroken ? (
             <img
-              src={q.data.avatar_url}
+              src={avatarSrc}
               alt=""
               onError={() => setAvatarBroken(true)}
               referrerPolicy="no-referrer"
@@ -193,6 +210,14 @@ function ProfilePage() {
               {initials(q.data.display_name)}
             </div>
           )}
+          <div className="mt-4">
+            <AvatarEditor
+              hasAvatar={!!q.data.avatar_url}
+              busy={avatar.isPending}
+              onSave={(b) => avatar.mutate(b)}
+              onRemove={() => avatar.mutate(null)}
+            />
+          </div>
           <h1 className="font-display mt-5 text-2xl font-bold">{q.data.display_name}</h1>
           <p className="text-primary">@{q.data.username}</p>
           <p className="mt-4 whitespace-pre-wrap text-muted-foreground">

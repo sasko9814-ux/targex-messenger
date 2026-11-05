@@ -50,6 +50,13 @@
       "when": 1793653436848,
       "tag": "0006_targex_ai",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793911902777,
+      "tag": "0007_private_avatars",
+      "breakpoints": true
     }
   ]
 }
