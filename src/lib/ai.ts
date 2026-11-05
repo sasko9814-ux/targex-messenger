@@ -175,3 +175,44 @@ export function buildChatSummaryPrompt(
     input: lines.join("\n"),
   };
 }
+
+// ---------- image analysis (TargeX AI chat) ----------
+export const AI_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+export const AI_IMAGE_PROMPT_MAX = 1000;
+export const aiImageTypes = {
+  "image/jpeg": ["jpg", "jpeg"],
+  "image/png": ["png"],
+  "image/webp": ["webp"],
+} as const;
+export type AiImageType = keyof typeof aiImageTypes;
+/** Base64 length for the max byte size (+ data URL header margin). */
+const DATA_URL_MAX = Math.ceil(AI_IMAGE_MAX_BYTES / 3) * 4 + 40;
+
+/** Client-side file check: MIME and extension must agree, size within bounds. */
+export function checkAiImageFile(f: {
+  name: string;
+  type: string;
+  size: number;
+}): "type" | "size" | null {
+  const ext = f.name.split(".").at(-1)?.toLowerCase() ?? "";
+  const allowed = aiImageTypes[f.type as AiImageType] as readonly string[] | undefined;
+  if (!allowed || !allowed.includes(ext)) return "type";
+  if (f.size <= 0 || f.size > AI_IMAGE_MAX_BYTES) return "size";
+  return null;
+}
+
+export const aiImageSchema = z
+  .object({
+    conversationId: z.string().uuid(),
+    prompt: z.string().trim().max(AI_IMAGE_PROMPT_MAX),
+    image: z
+      .string()
+      .max(DATA_URL_MAX, "size")
+      .regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/, "format")
+      .refine((s) => {
+        const b64 = s.slice(s.indexOf(",") + 1);
+        const pad = b64.endsWith("==") ? 2 : b64.endsWith("=") ? 1 : 0;
+        return b64.length % 4 === 0 && (b64.length / 4) * 3 - pad <= AI_IMAGE_MAX_BYTES;
+      }, "size"),
+  })
+  .strict();
